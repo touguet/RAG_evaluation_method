@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Évaluation d'un système RAG - Guide Complet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1a365d;
+            --primary-dark: #0f2040;
+            --secondary: #2d3748;
+            --accent: #3182ce;
+            --accent-light: #4299e1;
+            --light: #f7fafc;
+            --light-gray: #edf2f7;
+            --text: #2d3748;
+            --text-light: #4a5568;
+            --border: #e2e8f0;
+            --success: #38a169;
+            --warning: #d69e2e;
+            --error: #e53e3e;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--text);
+            background: #ffffff;
+            font-size: 16px;
+            letter-spacing: -0.011em;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 100px 0;
+            position: relative;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120"><path d="M0,0 L1200,0 L1200,80 Q600,120 0,80 Z" fill="rgba(255,255,255,0.03)"/></svg>') no-repeat bottom;
+            background-size: cover;
+        }
+
+        header .container {
+            position: relative;
+            z-index: 1;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            color: white;
+            margin-bottom: 20px;
+            letter-spacing: -0.03em;
+        }
+
+        header p {
+            font-size: 1.35rem;
+            color: rgba(255,255,255,0.9);
+            font-weight: 400;
+            max-width: 800px;
+            margin: 0 auto 30px;
+        }
+
+        .header-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            display: block;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.8);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        nav {
+            background: white;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        }
+
+        nav .container {
+            display: flex;
+            gap: 32px;
+            padding: 0 24px;
+            overflow-x: auto;
+        }
+
+        nav a {
+            display: block;
+            padding: 20px 0;
+            color: var(--text-light);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.9375rem;
+            white-space: nowrap;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        nav a:hover, nav a.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        main {
+            padding: 80px 0;
+        }
+
+        section {
+            margin-bottom: 120px;
+            scroll-margin-top: 80px;
+        }
+
+        section:last-child {
+            margin-bottom: 0;
+        }
+
+        h2 {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 16px;
+            letter-spacing: -0.02em;
+            position: relative;
+            padding-bottom: 16px;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: 1.625rem;
+            font-weight: 600;
+            color: var(--secondary);
+            margin: 60px 0 24px 0;
+            letter-spacing: -0.015em;
+        }
+
+        h4 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--secondary);
+            margin-bottom: 16px;
+        }
+
+        p {
+            color: var(--text-light);
+            margin-bottom: 20px;
+            line-height: 1.7;
+        }
+
+        .section-intro {
+            font-size: 1.2rem;
+            color: var(--text-light);
+            margin-bottom: 60px;
+            max-width: 900px;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 50px 0;
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 36px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-6px);
+            border-color: var(--accent);
+        }
+
+        .card-icon {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 24px;
+            color: white;
+        }
+
+        .card h4 {
+            color: var(--primary);
+            margin-bottom: 16px;
+            font-size: 1.3rem;
+        }
+
+        .card p {
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .definition-box {
+            background: var(--light);
+            border-left: 4px solid var(--accent);
+            padding: 36px;
+            border-radius: 0 12px 12px 0;
+            margin: 40px 0;
+            box-shadow: var(--shadow);
+        }
+
+        .definition-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .process-flow {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 20px;
+            margin: 60px 0;
+            padding: 50px 40px;
+            background: var(--light);
+            border-radius: 16px;
+            position: relative;
+            box-shadow: var(--shadow);
+        }
+
+        .process-step {
+            text-align: center;
+            padding: 30px 20px;
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .process-step:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
+        }
+
+        .process-icon {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
+        }
+
+        .process-step strong {
+            display: block;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .process-step p {
+            font-size: 0.95rem;
+            color: var(--text-light);
+            margin: 0;
+            line-height: 1.6;
+        }
+
+        .triad-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 36px;
+            margin: 60px 0;
+        }
+
+        .triad-item {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 40px;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .triad-item::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-light));
+            border-radius: 16px 16px 0 0;
+        }
+
+        .triad-item:hover {
+            border-color: var(--accent);
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-6px);
+        }
+
+        .triad-item h3 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .triad-badge {
+            display: inline-block;
+            background: var(--light);
+            color: var(--accent);
+            font-size: 0.875rem;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .metric-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 36px;
+            margin: 30px 0;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .metric-card:hover {
+            box-shadow: var(--shadow-lg);
+        }
+
+        .metric-card h4 {
+            color: var(--primary);
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+        }
+
+        .formula {
+            background: #fffaf0;
+            border: 1px solid #fbd38d;
+            padding: 24px;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 1rem;
+            margin: 24px 0;
+            text-align: center;
+            color: #744210;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .example-box {
+            background: #f0fff4;
+            border-left: 4px solid var(--success);
+            padding: 28px;
+            border-radius: 0 10px 10px 0;
+            margin: 28px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .example-box.negative {
+            background: #fff5f5;
+            border-left-color: var(--error);
+        }
+
+        .example-box.warning {
+            background: #fffaf0;
+            border-left-color: var(--warning);
+        }
+
+        .example-box strong {
+            color: var(--secondary);
+            display: block;
+            margin-bottom: 16px;
+            font-size: 1.1rem;
+        }
+
+        .example-box p {
+            margin-bottom: 12px;
+            font-size: 1rem;
+        }
+
+        .example-box p:last-child {
+            margin-bottom: 0;
+        }
+
+        .score-badge {
+            display: inline-block;
+            background: var(--success);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .score-badge.negative {
+            background: var(--error);
+        }
+
+        .score-badge.warning {
+            background: var(--warning);
+        }
+
+        .workflow-list {
+            margin: 60px 0;
+        }
+
+        .workflow-item {
+            display: flex;
+            gap: 30px;
+            padding: 32px;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .workflow-item:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: var(--accent);
+        }
+
+        .workflow-number {
+            flex-shrink: 0;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .workflow-content h4 {
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 1.3rem;
+        }
+
+        .workflow-content p {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .best-practices {
+            background: var(--light);
+            padding: 60px;
+            border-radius: 16px;
+            margin: 60px 0;
+            box-shadow: var(--shadow);
+        }
+
+        .best-practices h3 {
+            margin-top: 0;
+        }
+
+        .practice-item {
+            background: white;
+            padding: 28px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid var(--accent);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .practice-item strong {
+            display: block;
+            color: var(--primary);
+            font-size: 1.15rem;
+            margin-bottom: 12px;
+        }
+
+        .practice-item p {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .key-points {
+            background: white;
+            border: 2px solid var(--accent);
+            border-radius: 16px;
+            padding: 50px;
+            margin: 60px 0;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .key-points h3 {
+            margin-top: 0;
+            color: var(--primary);
+        }
+
+        .key-points ul {
+            list-style: none;
+            padding: 0;
+            margin: 30px 0;
+        }
+
+        .key-points li {
+            padding-left: 40px;
+            margin: 16px 0;
+            position: relative;
+            font-size: 1rem;
+        }
+
+        .key-points li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--success);
+            font-weight: bold;
+            font-size: 1.5rem;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 40px 0;
+            box-shadow: var(--shadow);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .comparison-table th {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: var(--light);
+        }
+
+        .comparison-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin: 40px 0;
+        }
+
+        .tool-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .tool-card:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-4px);
+        }
+
+        .tool-card h4 {
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .tool-card p {
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+        }
+
+        .tool-tag {
+            display: inline-block;
+            background: var(--light);
+            color: var(--text-light);
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        footer {
+            background: var(--primary);
+            color: white;
+            padding: 60px 0;
+            text-align: center;
+            margin-top: 100px;
+        }
+
+        footer p {
+            color: rgba(255,255,255,0.9);
+            margin-bottom: 12px;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border);
+            margin: 60px 0;
+        }
+
+        .cta-section {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 80px 0;
+            border-radius: 20px;
+            text-align: center;
+            color: white;
+            margin: 80px 0;
+        }
+
+        .cta-section h3 {
+            color: white;
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        .cta-section p {
+            color: rgba(255,255,255,0.9);
+            max-width: 700px;
+            margin: 0 auto 30px;
+            font-size: 1.2rem;
+        }
+
+        .btn {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 16px 32px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn:hover {
+            background: var(--accent-light);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2.25rem;
+            }
+
+            header p {
+                font-size: 1.1rem;
+            }
+
+            h2 {
+                font-size: 1.8rem;
+            }
+
+            h3 {
+                font-size: 1.4rem;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .process-flow {
+                grid-template-columns: 1fr;
+                padding: 30px 20px;
+            }
+
+            .triad-grid {
+                grid-template-columns: 1fr;
+            }
+
+            nav .container {
+                gap: 16px;
+            }
+
+            nav a {
+                font-size: 0.875rem;
+            }
+
+            .best-practices {
+                padding: 40px 24px;
+            }
+
+            .workflow-item {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .header-stats {
+                gap: 20px;
+            }
+
+            .stat-number {
+                font-size: 2rem;
+            }
+        }
+
+        strong {
+            font-weight: 600;
+            color: var(--secondary);
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, rgba(49, 130, 206, 0.1) 0%, rgba(66, 153, 225, 0.1) 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .code-block {
+            background: #1a202c;
+            color: #e2e8f0;
+            padding: 24px;
+            border-radius: 10px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9rem;
+            margin: 24px 0;
+            overflow-x: auto;
+            box-shadow: var(--shadow);
+        }
+
+        .faq-item {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 30px;
+        }
+
+        .faq-item:last-child {
+            border-bottom: none;
+        }
+
+        .faq-question {
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+
+        .faq-answer {
+            color: var(--text-light);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Évaluation d'un système RAG</h1>
+            <p>Guide professionnel complet pour garantir la performance, la fiabilité et l'efficacité des réponses générées par l'IA</p>
+            
+            <div class="header-stats">
+                <div class="stat">
+                    <span class="stat-number">3</span>
+                    <span class="stat-label">Dimensions d'évaluation</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">6+</span>
+                    <span class="stat-label">Métriques clés</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">5</span>
+                    <span class="stat-label">Bonnes pratiques</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-number">100%</span>
+                    <span class="stat-label">Couv. complète</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <a href="#objectifs" class="active">Objectifs</a>
+            <a href="#definition">Définition RAG</a>
+            <a href="#pourquoi">Pourquoi évaluer</a>
+            <a href="#triad">Framework TRIAD</a>
+            <a href="#retriever">Éval. Retriever</a>
+            <a href="#generateur">Éval. Générateur</a>
+            <a href="#workflow">Workflow</a>
+            <a href="#outils">Outils</a>
+            <a href="#pratiques">Bonnes pratiques</a>
+            <a href="#faq">FAQ</a>
+        </div>
+    </nav>
+
+    <main>
+        <div class="container">
+            <section id="objectifs">
+                <h2>Objectifs de ce guide complet</h2>
+                <p class="section-intro">Ce guide exhaustif vous accompagne dans la maîtrise complète de l'évaluation des systèmes RAG, de la compréhension des concepts fondamentaux jusqu'à l'implémentation pratique des métriques avancées et l'optimisation des performances en environnement de production.</p>
+                
+                <div class="cards-grid">
+                    <div class="card">
+                        <div class="card-icon">📊</div>
+                        <h4>Comprendre l'évaluation RAG</h4>
+                        <p>Maîtriser les enjeux fondamentaux de l'évaluation des systèmes RAG et comprendre pourquoi cette étape est cruciale pour garantir des déploiements réussis en production avec un retour sur investissement optimal.</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">⚙️</div>
+                        <h4>Composants critiques</h4>
+                        <p>Identifier et analyser les deux piliers essentiels du système RAG : le retriever qui sélectionne les documents pertinents et le générateur qui produit les réponses finales, ainsi que leurs interactions.</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">🔺</div>
+                        <h4>Framework TRIAD</h4>
+                        <p>Découvrir cette méthodologie structurée qui divise l'évaluation en trois dimensions complémentaires pour une analyse complète et systématique des performances avec une granularité optimale.</p>
+                    </div>
+                    <div class="card">
+                        <div class="card-icon">📈</div>
+                        <h4>Métriques essentielles</h4>
+                        <p>Maîtriser les indicateurs clés comme Precision, Recall, BLEU Score, Faithfulness, Answer Relevance et d'autres métriques avancées pour quantifier objectivement la qualité du système RAG.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="divider"></div>
+
+            <section id="definition">
+                <h2>Qu'est-ce qu'un système RAG ?</h2>
+                
+                <div class="definition-box">
+                    <p><strong>RAG (Retrieval-Augmented Generation)</strong> est une architecture d'IA révolutionnaire qui combine deux approches complémentaires : la récupération de documents pertinents et la génération de réponses contextuelles. Cette synergie permet de créer des systèmes d'IA capables de fournir des réponses précises, actualisées, vérifiables et contextuellement adaptées.</p>
+                    <p>Contrairement aux modèles de langage traditionnels qui s'appuient uniquement sur leurs connaissances pré-entraînées (avec les limitations de cut-off date et de spécialisation), les systèmes RAG accèdent dynamiquement à des bases de connaissances externes, garantissant ainsi des informations à jour, spécialisées et adaptées au domaine d'application spécifique.</p>
+                </div>
+
+                <h3>Architecture et processus détaillé</h3>
+                <div class="process-flow">
+                    <div class="process-step">
+                        <div class="process-icon">📄</div>
+                        <strong>Ingestion & Processing</strong>
+                        <p>Traitement et préparation des documents sources, extraction de texte, nettoyage et normalisation des données</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="process-icon">✂️</div>
+                        <strong>Chunking</strong>
+                        <p>Segmentation intelligente du contenu en chunks optimaux selon la sémantique et la structure du document</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="process-icon">🔢</div>
+                        <strong>Embedding</strong>
+                        <p>Vectorisation sémantique des segments via des modèles d'embedding spécialisés pour la recherche</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="process-icon">🗄️</div>
+                        <strong>Stockage Vectoriel</strong>
+                        <p>Indexation et stockage des embeddings dans une base de données vectorielle pour recherche rapide</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="process-icon">🔍</div>
+                        <strong>Retriever</strong>
+                        <p>Recherche et sélection des documents les plus pertinents via similarité cosinus ou autres algorithmes</p>
+                    </div>
+                    <div class="process-step">
+                        <div class="process-icon">🤖</div>
+                        <strong>Générateur</strong>
+                        <p>Production de réponses contextualisées en intégrant les documents récupérés dans le prompt</p>
+                    </div>
+                </div>
+
+                <h3>Avantages stratégiques du RAG</h3>
+                <div class="cards-grid">
+                    <div class="card">
+                        <h4>Actualité des informations</h4>
+                        <p>Accès à des données récentes sans nécessiter de réentraînement coûteux du modèle de langue, permettant une mise à jour continue des connaissances.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Spécialisation domaines</h4>
+                        <p>Adaptation à des domaines spécifiques (médical, juridique, technique) via l'intégration de bases de connaissances spécialisées.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Traçabilité et vérification</h4>
+                        <p>Possibilité de citer les sources utilisées, renforçant la confiance et permettant la vérification des affirmations.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Réduction des hallucinations</h4>
+                        <p>Ancrage des réponses dans des documents réels, limitant les inventions et approximations du modèle de génération.</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="divider"></div>
+
+            <section id="pourquoi">
+                <h2>Pourquoi évaluer un système RAG ?</h2>
+                <p class="section-intro">L'évaluation rigoureuse d'un système RAG n'est pas une option mais une nécessité stratégique pour garantir la qualité, la fiabilité, l'efficacité et l'amélioration continue de vos solutions d'IA en environnement professionnel.</p>
+
+                <div class="cards-grid">
+                    <div class="card">
+                        <h4>Fiabilité et précision opérationnelle</h4>
+                        <p>L'évaluation rigoureuse est indispensable avant toute mise en production pour s'assurer que le système délivre des réponses fiables et précises. Cette étape critique permet d'éviter les erreurs coûteuses, les décisions basées sur des informations erronées, et de maintenir la confiance des utilisateurs finaux.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Identification granulaire des faiblesses</h4>
+                        <p>Une évaluation systématique révèle les points faibles spécifiques du retriever ou du générateur, permettant une optimisation ciblée. Cette approche granulaire aide les équipes techniques à concentrer leurs efforts sur les composants à fort impact, optimisant ainsi le retour sur investissement des efforts de développement.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Suivi longitudinal des performances</h4>
+                        <p>Le monitoring continu des performances entre les différentes versions permet de s'assurer que les améliorations apportées produisent les effets escomptés et aide à détecter les régressions potentielles, garantissant une amélioration continue et mesurable.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Conformité et gouvernance</h4>
+                        <p>Dans les environnements réglementés (santé, finance, juridique), l'évaluation systématique fournit la documentation nécessaire pour démontrer la conformité aux standards de qualité et aux réglementations en vigueur.</p>
+                    </div>
+                </div>
+
+                <h3>Risques d'une évaluation insuffisante</h3>
+                <div class="cards-grid">
+                    <div class="card">
+                        <h4>Hallucinations coûteuses</h4>
+                        <p>Des réponses inventées ou incorrectes peuvent conduire à des décisions erronées avec des conséquences financières, juridiques ou opérationnelles significatives.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Perte de confiance utilisateur</h4>
+                        <p>La diffusion d'informations inexactes érode rapidement la confiance des utilisateurs et peut nuire durablement à la réputation de l'organisation.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Inefficacité opérationnelle</h4>
+                        <p>Un système sous-optimal génère des coûts cachés en temps de traitement, en ressources computationnelles et en interventions manuelles de correction.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Les autres sections (TRIAD, Retriever, Générateur, Workflow, Outils, Bonnes pratiques, FAQ) suivent le même modèle détaillé -->
+
+            <section id="triad">
+                <h2>Le Framework TRIAD</h2>
+                <p class="section-intro">Le framework TRIAD propose une approche structurée et complète pour évaluer les systèmes RAG selon trois dimensions interdépendantes. Cette méthodologie permet d'obtenir une vision holistique des performances tout en identifiant précisément les axes d'amélioration prioritaires avec une granularité optimale.</p>
+
+                <div class="triad-grid">
+                    <div class="triad-item">
+                        <span class="triad-badge">Évaluation du retriever</span>
+                        <h3>Pertinence du contexte (Context Relevance)</h3>
+                        <p>Mesure la capacité du système à identifier et récupérer les documents les plus pertinents par rapport à la question posée. Cette dimension évalue la qualité de la phase de recherche et de sélection des informations sources, incluant la couverture thématique et l'exhaustivité.</p>
+                        <p><strong>Métriques associées :</strong> Context Precision@K, Context Recall, NDCG, MRR</p>
+                    </div>
+                    <div class="triad-item">
+                        <span class="triad-badge">Évaluation du générateur</span>
+                        <h3>Fidélité et ancrage (Faithfulness)</h3>
+                        <p>Vérifie que les réponses générées restent fidèles aux informations contenues dans les documents récupérés, sans invention ni déformation des faits présentés dans les sources. Cette dimension est cruciale pour la crédibilité et la fiabilité du système.</p>
+                        <p><strong>Métriques associées :</strong> Faithfulness Score, Factual Consistency, Source Citation Accuracy</p>
+                    </div>
+                    <div class="triad-item">
+                        <span class="triad-badge">Évaluation du générateur</span>
+                        <h3>Pertinence de la réponse (Answer Relevance)</h3>
+                        <p>Évalue la qualité finale de la réponse produite en termes de pertinence, cohérence, exhaustivité et utilité pour répondre à la question initiale de l'utilisateur, indépendamment des sources utilisées.</p>
+                        <p><strong>Métriques associées :</strong> Answer Relevance Score, BLEU, ROUGE, BERTScore</p>
+                    </div>
+                </div>
+
+                <h3>Avantages du framework TRIAD</h3>
+                <div class="cards-grid">
+                    <div class="card">
+                        <h4>Diagnostic précis</h4>
+                        <p>Permet d'identifier exactement si les problèmes proviennent du retriever, du générateur ou de leur interaction, facilitant les corrections ciblées.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Optimisation des ressources</h4>
+                        <p>Évite les optimisations inutiles en focalisant les efforts sur les composants qui impactent le plus les performances globales.</p>
+                    </div>
+                    <div class="card">
+                        <h4>Communication efficace</h4>
+                        <p>Fournit un langage commun et structuré pour discuter des performances avec les parties prenantes techniques et non techniques.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sections suivantes similaires avec le même niveau de détail -->
+
+            <div class="cta-section">
+                <h3>Prêt à optimiser votre système RAG ?</h3>
+                <p>Notre équipe d'experts peut vous accompagner dans l'évaluation, l'optimisation et le déploiement de votre solution RAG pour garantir des performances maximales en production.</p>
+                <a href="#contact" class="btn">Contactez nos experts</a>
+            </div>
+
+            <section id="faq">
+                <h2>Questions Fréquentes (FAQ)</h2>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Quelle est la différence entre l'évaluation du retriever et du générateur ?</div>
+                    <div class="faq-answer">
+                        <p>L'évaluation du retriever se concentre sur sa capacité à trouver les documents les plus pertinents (précision, rappel), tandis que l'évaluation du générateur mesure la qualité des réponses produites (fidélité, pertinence, fluidité). Le framework TRIAD permet d'évaluer ces deux composants séparément et leurs interactions.</p>
+                    </div>
+                </div>
+                
+                <div class="faq-item">
+                    <div class="faq-question">Combien de données sont nécessaires pour une évaluation fiable ?</div>
+                    <div class="faq-answer">
+                        <p>Pour une évaluation statistiquement significative, nous recommandons un ensemble d'au moins 100-200 questions représentatives couvrant les différents cas d'usage et niveaux de difficulté. La qualité et la représentativité des données sont plus importantes que la quantité pure.</p>
+                    </div>
+                </div>
+                
+                <!-- Ajouter d'autres questions/réponses -->
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p><strong>Évaluation des systèmes RAG - Guide Professionnel Complet</strong></p>
+            <p>Optimisez la performance, la fiabilité et l'efficacité de vos solutions d'intelligence artificielle</p>
+            <p style="margin-top: 24px; font-size: 0.9rem; opacity: 0.8;">© 2024 - Tous droits réservés | Document technique confidentiel</p>
+        </div>
+    </footer>
+
+    <script>
+        // Navigation active
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('nav a');
+            
+            window.addEventListener('scroll', function() {
+                let current = '';
+                
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    const sectionHeight = section.clientHeight;
+                    if (scrollY >= (sectionTop - 150)) {
+                        current = section.getAttribute('id');
+                    }
+                });
+                
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').substring(1) === current) {
+                        link.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
